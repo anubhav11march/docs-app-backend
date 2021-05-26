@@ -47,9 +47,21 @@ app.post('/', async (req, res) =>{
     res.status(201).send("User Created Successfully");
 });
 
+app.get('/login/', async (req, res) =>{
+    const snapshot = admin.firestore().collection('users').get();
+    let f = 0; 
+    (await snapshot).forEach(doc => {
+        let id = doc.id;
+        let data = doc.data();
+        if(data.email == req.params.email){
+            f=1;
+        }
+    });
+    if(f==1)
+        res.status(200).send(1);
+    else    
+        res.status(200).send("Invalid Email or Password");
+});
+
 exports.user = functions.https.onRequest(app);
 
-exports.helloWorld = functions.https.onRequest((request, response) => {
-  functions.logger.info("Hello logs!", {structuredData: true});
-  response.send("Hello from Firebase!");
-});
