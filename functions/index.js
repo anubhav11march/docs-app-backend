@@ -53,18 +53,19 @@ app.put("/:id", async (req, res) =>{
 app.post('/', async (req, res) =>{
     const user = req.body;
     if(!validateEmail(user.email)){
-        res.status(400).send("Invalid email" + user.email);
+        res.status(400).json({resp: "400"});
     }
     else if(user.name.length < 3){
-        res.status(400).send("Invalid Name" + user.name);
+        res.status(400).json({resp: "400"});
     }
     else if(user.password.length < 6){
-        res.status(400).send("Please a valid password of minimum 6 characters.")
+        res.status(400).json({resp: "400"});
     }
     else{
         await admin.firestore().collection("users").add(user);
 
-        res.status(201).send("User Created Successfully");
+        res.status(200).json({resp: "200"});
+        // res.status(201).send("User Created Successfully");
     }
 });
 
@@ -80,9 +81,9 @@ login.post('/', async (req, res) =>{
         }
     });
     if(f==1)
-        res.status(201).send("Logged in");
+        res.status(200).json({resp: "200"});
     else    
-        res.status(400).send("Invalid Email or Password");
+        res.status(400).json({resp: "400"});
 });
 
 exports.user = functions.https.onRequest(app);
