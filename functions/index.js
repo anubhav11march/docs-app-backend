@@ -6,6 +6,7 @@ const admin = require("firebase-admin");
 admin.initializeApp();
 
 const app = express();
+const login = express();    
 
 app.get('/', async (req, res) =>{
     const snapshot = admin.firestore().collection('users').get();
@@ -30,38 +31,65 @@ app.get('/:id', async (req, res) => {
 }); 
 
 app.put("/:id", async (req, res) =>{
-    const body = req.body;
+    const user = req.body;
+    if(!validateEmail(user.email)){
+        res.status(400).send("Invalid email" + user.email);
+    }
+    else if(user.name.length < 3){
+        res.status(400).send("Invalid Name" + user.name);
+    }
+    else if(user.password.length < 6){
+        res.status(400).send("Please a valid password of minimum 6 characters.")
+    }
+    else{
+        await admin.firestore().collection('users').doc(req.params.id).update({
+            ...body
+        });
 
-    await admin.firestore().collection('users').doc(req.params.id).update({
-        ...body
-    });
-
-    res.status(200).send("");
+        res.status(200).send("User updated successfully");
+    }
 });
 
-//try to verify if the req body is in the form required or not
 app.post('/', async (req, res) =>{
     const user = req.body;
-    await admin.firestore().collection("users").add(user);
+    if(!validateEmail(user.email)){
+        res.status(400).send("Invalid email" + user.email);
+    }
+    else if(user.name.length < 3){
+        res.status(400).send("Invalid Name" + user.name);
+    }
+    else if(user.password.length < 6){
+        res.status(400).send("Please a valid password of minimum 6 characters.")
+    }
+    else{
+        await admin.firestore().collection("users").add(user);
 
-    res.status(201).send("User Created Successfully");
+        res.status(201).send("User Created Successfully");
+    }
 });
 
-app.get('/login/', async (req, res) =>{
+login.post('/', async (req, res) =>{
+    const credentials = req.body;
     const snapshot = admin.firestore().collection('users').get();
     let f = 0; 
     (await snapshot).forEach(doc => {
         let id = doc.id;
         let data = doc.data();
-        if(data.email == req.params.email){
+        if(data.email == credentials.email && data.password == credentials.password){
             f=1;
         }
     });
     if(f==1)
-        res.status(200).send(1);
+        res.status(201).send("Logged in");
     else    
-        res.status(200).send("Invalid Email or Password");
+        res.status(400).send("Invalid Email or Password");
 });
 
 exports.user = functions.https.onRequest(app);
+exports.userlogin = functions.https.onRequest(login);
+
+function validateEmail(email) {
+    const re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    return re.test(email);
+}  
 
