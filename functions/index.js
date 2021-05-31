@@ -11,6 +11,7 @@ const getdoctor = express();
 const messagesend = express();
 const messagesget = express();
 const patientschats = express();
+const listenchats = express();
 
 app.get('/', async (req, res) =>{
     const snapshot = admin.firestore().collection('users').get();
@@ -57,13 +58,13 @@ app.put("/:id", async (req, res) =>{
 app.post('/', async (req, res) =>{
     const user = req.body;
     if(!validateEmail(user.email)){
-        res.status(400).json({resp: "400"});
+        res.status(200).json({resp: "400"});
     }
     else if(user.name.length < 3){
-        res.status(400).json({resp: "400"});
+        res.status(200).json({resp: "400"});
     }
     else if(user.password.length < 6){
-        res.status(400).json({resp: "400"});
+        res.status(200).json({resp: "400"});
     }
     else{
         await admin.firestore().collection("users").add(user);
@@ -90,7 +91,7 @@ login.post('/', async (req, res) =>{
     if(f==1)
         res.status(200).send({resp: "200", uid: uid, name: name, type: userType});
     else    
-        res.status(400).send({resp: "400"});
+        res.status(200).send({resp: "400"});
 });
 
 getdoctor.post('/', async (req, res) =>{
@@ -160,13 +161,19 @@ messagesget.post('/', async (req, res) =>{
     const chatId = req.body.chatId;
     const snapshot = admin.firestore().collection('chats').doc(chatId)
                     .collection('messages').get();
+    if(snapshot == null){
+        res.status(200).send({});
+    }
     let messages = [];
     (await snapshot).forEach(doc => {
         let id = doc.id;
         let data = doc.data();
-        messages.push({id, ...data});
+        messages.push({_id: id, text: data.content, createdAt: data.timestamp, 
+                        user: {
+                            _id: data.sender, name: data.senderName, avatar: "https://placeimg.com/140/140/any" 
+                        }});
     });
-
+    messages.reverse();
     res.status(200).send(JSON.stringify(messages));
 });
 
@@ -182,41 +189,17 @@ patientschats.post('/', async (req, res) =>{
     });
 
     res.status(200).send(JSON.stringify(patients));
-    // let ids = [];
-    // let patients = [];
-    // const snapshot = admin.firestore().collection('users').doc(docUid)
-    //             .collection('chats').get();
-    // (await snapshot).forEach(doc => {
-    //     let chat = doc.data().chatId;
-    //     ids.push(chatId);
-    //     async chatId => {
-    //         const messageData = await admin.firestore()
-    //                         .collection('chats').doc(chatId).get();
-    //         const patientData = await admin.firestore().collection('users')
-    //                     .doc(messageData.data().patient).get();
-    //         patients.push({
-    //             uid: messageData.data().patient,
-    //             timestamp: messageData.data().timestamp,
-    //             text: messageData.data().lastMessage,
-    //             name: patientData.data().name
-    //         });
-    //         functions.logger.log("IDDD " + patients[patients.length-1]);
-    //     }                 
-    // });
-    // // ids.forEach(async chatId => {
-    // //     const messageData = await admin.firestore()
-    // //                     .collection('chats').doc(chatId).get();
-    // //     const patientData = await admin.firestore().collection('users')
-    // //                 .doc(messageData.data().patient).get();
-    // //     patients.push({
-    // //         uid: messageData.data().patient,
-    // //         timestamp: messageData.data().timestamp,
-    // //         text: messageData.data().lastMessage,
-    // //         name: patientData.data().name
-    // //     });
-    // //     functions.logger.log("IDDD " + patients[patients.length-1]);
-    // // });
-    // res.status(200).send(JSON.stringify(patients));
+});
+
+listenchats.post('/', async (req, res) =>{
+    const chatId = req.body.chatId;
+    const observer = admin.firestore().collection('chats')
+                    .doc(chatId).onSnapshot(docSnapshot => {
+                        observer();
+                        done();
+                    }, err =>{
+                        res.status(400).send("Error occurred");
+                    });
 });
 
 
@@ -227,6 +210,7 @@ exports.searchdoctor = functions.https.onRequest(getdoctor);
 exports.getmessages = functions.https.onRequest(messagesget);
 exports.sendmessage = functions.https.onRequest(messagesend);
 exports.getpatientschats = functions.https.onRequest(patientschats);
+exports.listenrealtimechats = functions.https.onRequest(listenchats);
 
 
 function validateEmail(email) {
